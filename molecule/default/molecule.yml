@@ -1,0 +1,25 @@
+---
+ansible:
+  executor:
+    backend: ansible-playbook
+    args:
+      ansible_playbook:
+        - --inventory=../../.lab/inventory.yml
+  env:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  playbooks:
+    create: create.yml
+    converge: converge.yml
+    verify: verify.yml
+    destroy: destroy.yml
+scenario:
+  create_sequence: [create]
+  converge_sequence: [create, converge]
+  destroy_sequence: [destroy]
+  test_sequence:
+    - create
+    - converge
+    - verify
+    - destroy
+verifier:
+  name: ansible

@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+name="lab-echo"
+description="Small TCP and UDP responder for firewall tests"
+command="/usr/bin/python3"
+command_args="/usr/local/bin/lab-echo.py{% for port in demo_echo_tcp_ports %} --tcp {{ port }}{% endfor %}{% for port in demo_echo_udp_ports %} --udp {{ port }}{% endfor %}"
+command_background="yes"
+pidfile="/run/lab-echo.pid"
+
+depend() {
+    need net
+}

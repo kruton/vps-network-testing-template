@@ -1,0 +1,19 @@
+---
+- name: Check network behavior from the probe VMs
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Run end-to-end traffic tests
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -m
+          - pytest
+          - molecule/default/tests
+          - -q
+          - -x
+          - --tb=short
+        chdir: "{{ playbook_dir }}/../.."
+      changed_when: false

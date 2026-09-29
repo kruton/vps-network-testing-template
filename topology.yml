@@ -1,0 +1,30 @@
+# Each network is an isolated vswitch port. Addresses are documentation ranges.
+networks:
+  internal:
+    port: 9999
+    ipv4: 192.0.2.0/24
+    ipv6: 2001:db8:100::/64
+  external:
+    port: 9998
+    ipv4: 198.51.100.0/24
+    ipv6: 2001:db8:200::/64
+
+vms:
+  router:
+    ssh_port: 2225
+    networks:
+      internal: {ipv4: 192.0.2.1, ipv6: '2001:db8:100::1'}
+      external: {ipv4: 198.51.100.1, ipv6: '2001:db8:200::1'}
+  vps:
+    ssh_port: 2222
+    networks:
+      internal: {ipv4: 192.0.2.10, ipv6: '2001:db8:100::10'}
+      external: {ipv4: 198.51.100.10, ipv6: '2001:db8:200::10'}
+  internal-client:
+    ssh_port: 2223
+    networks:
+      internal: {ipv4: 192.0.2.100, ipv6: '2001:db8:100::100'}
+  external-client:
+    ssh_port: 2224
+    networks:
+      external: {ipv4: 198.51.100.200, ipv6: '2001:db8:200::200'}

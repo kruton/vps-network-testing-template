@@ -1,0 +1,7 @@
+---
+# Copy this file to site.yml and replace the example role with your own roles.
+- name: Configure your VPS
+  hosts: targets
+  become: true
+  roles:
+    - demo_firewall

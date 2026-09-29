@@ -1,0 +1,15 @@
+---
+- name: Destroy the virtual network lab
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Stop VMs and vswitch
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - scripts/lab.py
+          - down
+        chdir: "{{ playbook_dir }}/../.."
+      changed_when: true

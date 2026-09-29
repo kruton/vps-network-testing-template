@@ -1,0 +1,12 @@
+---
+# Deliberately separate from expectations.yml: tests must detect policy drift.
+demo_firewall_allowed:
+  external:
+    tcp: [8080]
+    udp: [8081]
+  internal:
+    tcp: [9090]
+    udp: [9091]
+
+demo_echo_tcp_ports: [8080, 9090]
+demo_echo_udp_ports: [8081, 9091]

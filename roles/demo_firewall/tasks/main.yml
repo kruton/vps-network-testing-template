@@ -1,0 +1,116 @@
+---
+- name: Install firewall and route tools
+  community.general.apk:
+    name: [firewalld, iproute2]
+    state: present
+
+- name: Disable forwarding through the VPS
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: "0"
+    sysctl_file: /etc/sysctl.d/99-lab-vps.conf
+  loop:
+    - net.ipv4.ip_forward
+    - net.ipv6.conf.all.forwarding
+
+- name: Install echo responder
+  ansible.builtin.copy:
+    src: echo.py
+    dest: /usr/local/bin/lab-echo.py
+    mode: "0755"
+  notify: Restart lab echo
+
+- name: Install echo OpenRC service
+  ansible.builtin.template:
+    src: lab-echo.init.j2
+    dest: /etc/init.d/lab-echo
+    mode: "0755"
+  notify: Restart lab echo
+
+- name: Start echo responder
+  ansible.builtin.service:
+    name: lab-echo
+    state: started
+    enabled: true
+
+- name: Start D-Bus for firewall management
+  ansible.builtin.service:
+    name: dbus
+    state: started
+    enabled: true
+
+- name: Start the firewall
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Wait for the firewall daemon
+  ansible.builtin.command: firewall-cmd --state
+  register: demo_firewall_state
+  until: demo_firewall_state.rc == 0
+  retries: 15
+  delay: 2
+  changed_when: false
+
+- name: Keep management SSH accessible
+  ansible.posix.firewalld:
+    zone: public
+    service: ssh
+    state: enabled
+    permanent: true
+    immediate: true
+
+- name: Create one firewall zone per test segment
+  ansible.posix.firewalld:
+    zone: "lab-{{ item.network }}"
+    state: present
+    permanent: true
+  loop: "{{ lab_interfaces }}"
+  register: demo_zones
+
+- name: Load newly created VPS zones
+  ansible.builtin.command: firewall-cmd --reload
+  when: demo_zones.changed
+  changed_when: true
+
+- name: Drop traffic by default on test interfaces
+  ansible.posix.firewalld:
+    zone: "lab-{{ item.network }}"
+    target: DROP
+    state: enabled
+    permanent: true
+  loop: "{{ lab_interfaces }}"
+  register: demo_targets
+
+- name: Activate VPS zone targets
+  ansible.builtin.command: firewall-cmd --reload
+  when: demo_targets.changed
+  changed_when: true
+
+- name: Assign test interfaces to zones
+  ansible.posix.firewalld:
+    zone: "lab-{{ item.network }}"
+    interface: "{{ item.interface }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  loop: "{{ lab_interfaces }}"
+
+- name: Open TCP example ports
+  ansible.posix.firewalld:
+    zone: "lab-{{ item.0.key }}"
+    port: "{{ item.1 }}/tcp"
+    state: enabled
+    permanent: true
+    immediate: true
+  loop: "{{ demo_firewall_allowed | dict2items | subelements('value.tcp') }}"
+
+- name: Open UDP example ports
+  ansible.posix.firewalld:
+    zone: "lab-{{ item.0.key }}"
+    port: "{{ item.1 }}/udp"
+    state: enabled
+    permanent: true
+    immediate: true
+  loop: "{{ demo_firewall_allowed | dict2items | subelements('value.udp') }}"

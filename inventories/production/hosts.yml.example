@@ -1,0 +1,7 @@
+all:
+  children:
+    targets:
+      hosts:
+        your-vps.example.net:
+          ansible_user: your-automation-user
+          # Set connection details and role variables for your own VPS.

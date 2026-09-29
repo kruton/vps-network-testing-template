@@ -1,0 +1,149 @@
+---
+- name: Configure the lab router
+  hosts: routers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install the router firewall
+      community.general.apk:
+        name: [firewalld, iproute2]
+        state: present
+
+    - name: Enable IPv4 forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        sysctl_file: /etc/sysctl.d/99-lab-router.conf
+
+    - name: Enable IPv6 forwarding
+      ansible.posix.sysctl:
+        name: net.ipv6.conf.all.forwarding
+        value: "1"
+        sysctl_file: /etc/sysctl.d/99-lab-router.conf
+
+    - name: Start D-Bus for firewall management
+      ansible.builtin.service:
+        name: dbus
+        state: started
+        enabled: true
+
+    - name: Start the firewall
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Wait for the firewall daemon
+      ansible.builtin.command: firewall-cmd --state
+      register: router_firewall_state
+      until: router_firewall_state.rc == 0
+      retries: 15
+      delay: 2
+      changed_when: false
+
+    - name: Keep management SSH accessible
+      ansible.posix.firewalld:
+        zone: public
+        service: ssh
+        state: enabled
+        permanent: true
+        immediate: true
+
+    - name: Create an isolated zone for each test network
+      ansible.posix.firewalld:
+        zone: "lab-{{ item.network }}"
+        state: present
+        permanent: true
+      loop: "{{ lab_interfaces }}"
+      register: router_zones
+
+    - name: Load newly created router zones
+      ansible.builtin.command: firewall-cmd --reload
+      when: router_zones.changed
+      changed_when: true
+
+    - name: Reject forwarding and unsolicited traffic on test networks
+      ansible.posix.firewalld:
+        zone: "lab-{{ item.network }}"
+        target: DROP
+        state: enabled
+        permanent: true
+      loop: "{{ lab_interfaces }}"
+      register: router_targets
+
+    - name: Activate router zone targets
+      ansible.builtin.command: firewall-cmd --reload
+      when: router_targets.changed
+      changed_when: true
+
+    - name: Attach router test interfaces to their zones
+      ansible.posix.firewalld:
+        zone: "lab-{{ item.network }}"
+        interface: "{{ item.interface }}"
+        state: enabled
+        permanent: true
+        immediate: true
+      loop: "{{ lab_interfaces }}"
+
+- name: Configure the example VPS
+  hosts: targets
+  become: true
+  gather_facts: false
+  roles:
+    - ../../roles/demo_firewall
+
+- name: Prepare client tools
+  hosts: clients
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install route inspection tools
+      community.general.apk:
+        name: [iproute2]
+        state: present
+
+    - name: Install the probe helper
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../scripts/probe.py"
+        dest: /usr/local/bin/lab-probe.py
+        mode: "0755"
+
+    - name: Install a peer responder for routing isolation checks
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../roles/demo_firewall/files/echo.py"
+        dest: /usr/local/bin/lab-echo.py
+        mode: "0755"
+      notify: Restart peer responder
+
+    - name: Install the peer responder service
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/demo_firewall/templates/lab-echo.init.j2"
+        dest: /etc/init.d/lab-echo
+        mode: "0755"
+      vars:
+        demo_echo_tcp_ports: [7777]
+        demo_echo_udp_ports: []
+      notify: Restart peer responder
+
+    - name: Start the peer responder
+      ansible.builtin.service:
+        name: lab-echo
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart peer responder
+      ansible.builtin.service:
+        name: lab-echo
+        state: restarted
+
+- name: Install the probe helper on the VPS
+  hosts: targets
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Copy probe helper
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../scripts/probe.py"
+        dest: /usr/local/bin/lab-probe.py
+        mode: "0755"

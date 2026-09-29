@@ -1,0 +1,10 @@
+# Test intent lives separately from the Ansible firewall role.
+probes:
+  - {source: external-client, destination: vps, network: external, protocol: tcp, port: 8080, allowed: true}
+  - {source: external-client, destination: vps, network: external, protocol: udp, port: 8081, allowed: true}
+  - {source: external-client, destination: vps, network: external, protocol: tcp, port: 9090, allowed: false}
+  - {source: external-client, destination: vps, network: external, protocol: udp, port: 9091, allowed: false}
+  - {source: internal-client, destination: vps, network: internal, protocol: tcp, port: 9090, allowed: true}
+  - {source: internal-client, destination: vps, network: internal, protocol: udp, port: 9091, allowed: true}
+  - {source: internal-client, destination: vps, network: internal, protocol: tcp, port: 8080, allowed: false}
+  - {source: internal-client, destination: vps, network: internal, protocol: udp, port: 8081, allowed: false}
