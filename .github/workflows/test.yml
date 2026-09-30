@@ -7,7 +7,7 @@ on:
 
 jobs:
   full-lab:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
