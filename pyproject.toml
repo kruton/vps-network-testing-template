@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Dual-stack VPS firewall integration lab"
 requires-python = ">=3.12"
 dependencies = [
-    "ansible-core>=2.19,<2.22",
+    "ansible-core>=2.22,<2.23",
     "molecule>=25.7,<27",
     "pytest>=8,<10",
     "pytest-testinfra>=10,<11",
